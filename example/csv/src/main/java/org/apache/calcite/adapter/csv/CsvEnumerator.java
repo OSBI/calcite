@@ -102,14 +102,24 @@ class CsvEnumerator<E> implements Enumerator<E> {
     try {
       reader = openCsv(file);
       final String[] strings = reader.readNext();
+      int col = 0;
       for (String string : strings) {
         final String name;
-        final CsvFieldType fieldType;
+        CsvFieldType fieldType = null;
         final int colon = string.indexOf(':');
         if (colon >= 0) {
           name = string.substring(0, colon);
           String typeString = string.substring(colon + 1);
           fieldType = CsvFieldType.of(typeString);
+          if(fieldType == null){
+            String[] nextline = reader.readNext();
+            if(nextline!=null) {
+              String field = nextline[col];
+              if(field!=null){
+                fieldType = CsvFieldType.of(convertField(field).toString());
+              }
+            }
+          }
           if (fieldType == null) {
             System.out.println("WARNING: Found unknown type: "
               + typeString + " in file: " + file.getAbsolutePath()
@@ -117,8 +127,32 @@ class CsvEnumerator<E> implements Enumerator<E> {
               + ". Will assume the type of column is string");
           }
         } else {
+          String type = null;
+          CSVReader reader2 = openCsv(file);
+          reader2.readNext();
+          for(int i = 0; i<20; i++) {
+            String[] nextline = reader2.readNext();
+            if(nextline == null){
+              break;
+            }
+            else{
+              String field = nextline[col];
+              if (field != null) {
+                String object = convertField(field);
+                if(type == null){
+                  type = object;
+                }
+                if(type!=null & !type.equals(object)){
+                  type="string";
+                }
+
+              }
+            }
+          }
+          fieldType = CsvFieldType.of(type);
           name = string;
-          fieldType = null;
+          col++;
+          //fieldType = null;
         }
         final RelDataType type;
         if (fieldType == null) {
@@ -149,6 +183,47 @@ class CsvEnumerator<E> implements Enumerator<E> {
     }
     return typeFactory.createStructType(Pair.zip(names, types));
   }
+
+  private static String convertField(String f){
+
+    String o;
+
+      o = isNumeric(f);
+
+    if(o==null){
+      o = isInteger(f);
+    }
+    if(o==null){
+      o = "string";
+    }
+
+    return o;
+  }
+
+  private static String isNumeric(String str) throws NumberFormatException
+  {
+
+    try {
+      Double.parseDouble(str);
+      return "double";
+    } catch (NumberFormatException e) {
+      return null;
+    }
+
+  }
+
+  public static String isInteger(String s) throws NumberFormatException{
+
+    try {
+      Integer.parseInt(s);
+      return "int";
+    }
+    catch(NumberFormatException e){
+      return null;
+    }
+
+  }
+
 
   private static CSVReader openCsv(File file) throws IOException {
     final Reader fileReader;

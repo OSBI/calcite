@@ -38,6 +38,11 @@ import org.apache.calcite.schema.impl.TableMacroImpl;
 import org.apache.calcite.schema.impl.ViewTable;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
+import org.apache.commons.vfs.FileContent;
+import org.apache.commons.vfs.FileObject;
+import org.apache.commons.vfs.FileSystemManager;
+import org.apache.commons.vfs.VFS;
+import org.apache.commons.vfs.provider.http.HttpFileObject;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -46,6 +51,7 @@ import com.google.common.collect.ImmutableMap;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.sql.SQLException;
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -68,17 +74,61 @@ public class ModelHandler {
       throws IOException {
     super();
     this.connection = connection;
-    this.modelUri = uri;
     final ObjectMapper mapper = new ObjectMapper();
     mapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
     mapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
     mapper.configure(JsonParser.Feature.ALLOW_COMMENTS, true);
-    JsonRoot root;
+    JsonRoot root = null;
+    this.modelUri = uri;
     if (uri.startsWith("inline:")) {
       root = mapper.readValue(
           uri.substring("inline:".length()), JsonRoot.class);
     } else {
-      root = mapper.readValue(new File(uri), JsonRoot.class);
+      FileSystemManager fsManager = VFS.getManager();
+      if (fsManager == null) {
+      }
+      if (uri.startsWith("file://localhost")) {
+        uri = uri.substring("file://localhost".length());
+      }
+      if (uri.startsWith("file:")) {
+        uri = uri.substring("file:".length());
+      }
+// work around for VFS bug not closing http sockets
+// (Mondrian-585)
+      if (uri.startsWith("http")) {
+        try {
+          root = mapper.readValue(new URL(uri).openStream(), JsonRoot.class);
+        } catch (IOException e) {
+
+
+        }
+      } else {
+        File userDir = new File("").getAbsoluteFile();
+        FileObject file = fsManager.resolveFile(userDir, uri);
+        FileContent fileContent = null;
+        try {
+          file.refresh();
+
+          if (file instanceof HttpFileObject
+              && !file.getName().getURI().equals(uri)) {
+            fsManager.getFilesCache().removeFile(
+                file.getFileSystem(), file.getName());
+            file = fsManager.resolveFile(userDir, uri);
+          }
+          if (!file.isReadable()) {
+
+          }
+          fileContent = file.getContent();
+        } finally {
+          file.close();
+        }
+        if (fileContent == null) {
+
+        }
+        root = mapper.readValue(fileContent.getInputStream(), JsonRoot.class);
+      }
+
+
     }
     visit(root);
   }
