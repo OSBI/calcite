@@ -116,6 +116,18 @@ limitations under the License.
     <vfs.version>1.0</vfs.version>
   </properties>
 
+    <distributionManagement>
+        <repository>
+            <id>utility</id>
+            <name>utility-releases</name>
+            <url>http://repo.meteorite.bi/content/repositories/alabs-release-local/</url>
+        </repository>
+        <snapshotRepository>
+            <id>utility</id>
+            <name>utility-snapshots</name>
+            <url>http://repo.meteorite.bi/content/repositories/alabs-snapshot-local/</url>
+        </snapshotRepository>
+    </distributionManagement>
   <issueManagement>
     <system>Jira</system>
     <url>https://issues.apache.org/jira/browse/CALCITE</url>
