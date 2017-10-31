@@ -38,6 +38,10 @@ import java.lang.reflect.Type;
  */
 public class CsvTranslatableTable extends CsvTable
     implements QueryableTable, TranslatableTable {
+  CsvTranslatableTable(String uri, RelProtoDataType protoRowType) {
+    super(uri, protoRowType);
+  }
+  
   /** Creates a CsvTable. */
   CsvTranslatableTable(File file, RelProtoDataType protoRowType) {
     super(file, protoRowType);
@@ -53,7 +57,7 @@ public class CsvTranslatableTable extends CsvTable
   public Enumerable<Object> project(final int[] fields) {
     return new AbstractEnumerable<Object>() {
       public Enumerator<Object> enumerator() {
-        return new CsvEnumerator<Object>(file, fieldTypes, fields);
+        return new CsvEnumerator<Object>(inputStream, fieldTypes, fields);
       }
     };
   }

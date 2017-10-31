@@ -21,8 +21,14 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.schema.impl.AbstractTable;
+import org.apache.commons.vfs.FileSystemException;
+import org.apache.commons.vfs.FileSystemManager;
+import org.apache.commons.vfs.VFS;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,14 +36,39 @@ import java.util.List;
  * Base class for table that reads CSV files.
  */
 public abstract class CsvTable extends AbstractTable {
-  protected final File file;
+  //Using an inputstream instead of a file, so we're able to read data from any source
+  protected final InputStream inputStream; 
   private final RelProtoDataType protoRowType;
   protected List<CsvFieldType> fieldTypes;
 
   /** Creates a CsvAbstractTable. */
   CsvTable(File file, RelProtoDataType protoRowType) {
-    this.file = file;
+    try {
+      this.inputStream = new FileInputStream(file);
+    } catch (FileNotFoundException e) {
+      throw new CsvTableException(e);
+    }
+    
     this.protoRowType = protoRowType;
+    
+    setupInputStream();    
+  }
+
+  CsvTable(String uri, RelProtoDataType protoRowType) {
+    this.protoRowType = protoRowType;
+
+    ApacheVfsVirtualFileHandler fileHandler = new ApacheVfsVirtualFileHandler();
+    try {
+      this.inputStream = fileHandler.readVirtualFile(uri);
+    } catch (FileSystemException e) {
+      throw new CsvTableException(e);
+    }
+    
+    setupInputStream();
+  }
+  
+  private void setupInputStream() {
+    this.inputStream.mark(Integer.MAX_VALUE);
   }
 
   public RelDataType getRowType(RelDataTypeFactory typeFactory) {
@@ -46,18 +77,21 @@ public abstract class CsvTable extends AbstractTable {
     }
     if (fieldTypes == null) {
       fieldTypes = new ArrayList<CsvFieldType>();
-      return CsvEnumerator.deduceRowType((JavaTypeFactory) typeFactory, file,
-          fieldTypes);
+      return CsvEnumerator.deduceRowType((JavaTypeFactory) typeFactory, inputStream, fieldTypes);
     } else {
-      return CsvEnumerator.deduceRowType((JavaTypeFactory) typeFactory,
-          file,
-          null);
+      return CsvEnumerator.deduceRowType((JavaTypeFactory) typeFactory, inputStream, null);
     }
   }
 
   /** Various degrees of table "intelligence". */
   public enum Flavor {
     SCANNABLE, FILTERABLE, TRANSLATABLE
+  }
+  
+  public static class CsvTableException extends RuntimeException {
+    public CsvTableException(Throwable throwable) {
+      super(throwable);
+    }
   }
 }
 

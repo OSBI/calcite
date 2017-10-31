@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.text.ParseException;
@@ -61,8 +62,16 @@ class CsvEnumerator<E> implements Enumerator<E> {
         FastDateFormat.getInstance("yyyy-MM-dd HH:mm:ss", gmt);
   }
 
+  public CsvEnumerator(InputStream stream, List<CsvFieldType> fieldTypes) {
+    this(stream, fieldTypes, identityList(fieldTypes.size()));
+  }
+  
   public CsvEnumerator(File file, List<CsvFieldType> fieldTypes) {
     this(file, fieldTypes, identityList(fieldTypes.size()));
+  }
+
+  public CsvEnumerator(InputStream stream, List<CsvFieldType> fieldTypes, int[] fields) {
+    this(stream, null, (RowConverter<E>) converter(fieldTypes, fields));
   }
 
   public CsvEnumerator(File file, List<CsvFieldType> fieldTypes, int[] fields) {
@@ -81,6 +90,18 @@ class CsvEnumerator<E> implements Enumerator<E> {
       throw new RuntimeException(e);
     }
   }
+  
+  public CsvEnumerator(InputStream stream, String[] filterValues,
+      RowConverter<E> rowConverter) {
+    this.rowConverter = rowConverter;
+    this.filterValues = filterValues;
+    try {
+      this.reader = openCsv(stream);
+      this.reader.readNext(); // skip header row
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
 
   private static RowConverter<?> converter(List<CsvFieldType> fieldTypes,
       int[] fields) {
@@ -91,16 +112,27 @@ class CsvEnumerator<E> implements Enumerator<E> {
       return new ArrayRowConverter(fieldTypes, fields);
     }
   }
-
+  
   /** Deduces the names and types of a table's columns by reading the first line
    * of a CSV file. */
   static RelDataType deduceRowType(JavaTypeFactory typeFactory, File file,
+      List<CsvFieldType> fieldTypes) {
+    try {
+      return deduceRowType(typeFactory, new FileInputStream(file), fieldTypes);
+    } catch (IOException ex) {
+      throw new RuntimeException(ex);
+    }
+  }
+
+  /** Deduces the names and types of a table's columns by reading the first line
+   * of a CSV file. */
+  static RelDataType deduceRowType(JavaTypeFactory typeFactory, InputStream stream,
       List<CsvFieldType> fieldTypes) {
     final List<RelDataType> types = new ArrayList<>();
     final List<String> names = new ArrayList<>();
     CSVReader reader = null;
     try {
-      reader = openCsv(file);
+      reader = openCsv(stream);
       final String[] strings = reader.readNext();
       int col = 0;
       for (String string : strings) {
@@ -122,13 +154,13 @@ class CsvEnumerator<E> implements Enumerator<E> {
           }
           if (fieldType == null) {
             System.out.println("WARNING: Found unknown type: "
-              + typeString + " in file: " + file.getAbsolutePath()
+              + typeString + " in file "
               + " for column: " + name
               + ". Will assume the type of column is string");
           }
         } else {
           String type = null;
-          CSVReader reader2 = openCsv(file);
+          CSVReader reader2 = openCsv(stream);
           reader2.readNext();
           for(int i = 0; i<20; i++) {
             String[] nextline = reader2.readNext();
@@ -224,7 +256,6 @@ class CsvEnumerator<E> implements Enumerator<E> {
 
   }
 
-
   private static CSVReader openCsv(File file) throws IOException {
     final Reader fileReader;
     if (file.getName().endsWith(".gz")) {
@@ -235,6 +266,11 @@ class CsvEnumerator<E> implements Enumerator<E> {
       fileReader = new FileReader(file);
     }
     return new CSVReader(fileReader);
+  }
+  
+  private static CSVReader openCsv(InputStream stream) throws IOException {
+    stream.reset();
+    return new CSVReader(new InputStreamReader(stream));
   }
 
   public E current() {

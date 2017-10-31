@@ -33,6 +33,10 @@ import java.io.File;
  */
 public class CsvScannableTable extends CsvTable
     implements ScannableTable {
+  CsvScannableTable(String uri, RelProtoDataType protoRowType) {
+    super(uri, protoRowType);
+  }
+  
   /** Creates a CsvScannableTable. */
   CsvScannableTable(File file, RelProtoDataType protoRowType) {
     super(file, protoRowType);
@@ -46,7 +50,7 @@ public class CsvScannableTable extends CsvTable
     final int[] fields = CsvEnumerator.identityList(fieldTypes.size());
     return new AbstractEnumerable<Object[]>() {
       public Enumerator<Object[]> enumerator() {
-        return new CsvEnumerator<Object[]>(file,
+        return new CsvEnumerator<Object[]>(inputStream,
             null, new CsvEnumerator.ArrayRowConverter(fieldTypes, fields));
       }
     };
