@@ -40,9 +40,12 @@ public abstract class CsvTable extends AbstractTable {
   protected final InputStream inputStream; 
   private final RelProtoDataType protoRowType;
   protected List<CsvFieldType> fieldTypes;
+  protected File file;
 
   /** Creates a CsvAbstractTable. */
   CsvTable(File file, RelProtoDataType protoRowType) {
+    this.file = file;
+    
     try {
       this.inputStream = new FileInputStream(file);
     } catch (FileNotFoundException e) {
@@ -77,8 +80,21 @@ public abstract class CsvTable extends AbstractTable {
     }
     if (fieldTypes == null) {
       fieldTypes = new ArrayList<CsvFieldType>();
+      
+      if (file != null) {
+        CsvEnumerator.setFile(file);
+        return CsvEnumerator.deduceRowType((JavaTypeFactory) typeFactory, file, fieldTypes);
+      }
+      
+      CsvEnumerator.setFile(null);
       return CsvEnumerator.deduceRowType((JavaTypeFactory) typeFactory, inputStream, fieldTypes);
     } else {
+      if (file != null) {
+        CsvEnumerator.setFile(file);
+        return CsvEnumerator.deduceRowType((JavaTypeFactory) typeFactory, file, null);
+      }
+      
+      CsvEnumerator.setFile(null);
       return CsvEnumerator.deduceRowType((JavaTypeFactory) typeFactory, inputStream, null);
     }
   }

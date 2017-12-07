@@ -49,6 +49,7 @@ class CsvEnumerator<E> implements Enumerator<E> {
   private final String[] filterValues;
   private final RowConverter<E> rowConverter;
   private E current;
+  private static File file;
 
   private static final FastDateFormat TIME_FORMAT_DATE;
   private static final FastDateFormat TIME_FORMAT_TIME;
@@ -269,8 +270,12 @@ class CsvEnumerator<E> implements Enumerator<E> {
   }
   
   private static CSVReader openCsv(InputStream stream) throws IOException {
-    stream.reset();
-    return new CSVReader(new InputStreamReader(stream));
+    if (CsvEnumerator.file != null) {
+      return new CSVReader(new FileReader(file));
+    } else {
+      stream.reset();
+      return new CSVReader(new InputStreamReader(stream));
+    }
   }
 
   public E current() {
@@ -440,6 +445,14 @@ class CsvEnumerator<E> implements Enumerator<E> {
     public Object convertRow(String[] strings) {
       return convert(fieldType, strings[fieldIndex]);
     }
+  }
+  
+  public static File getFile() {
+    return file;
+  }
+  
+  public static void setFile(File f) {
+    file = f;
   }
 }
 
