@@ -80,6 +80,12 @@ public class ModelHandler {
     mapper.configure(JsonParser.Feature.ALLOW_COMMENTS, true);
     JsonRoot root = null;
     this.modelUri = uri;
+
+    // Tweak to support Mondrian VFS files
+    if (uri.startsWith("//")) {
+      uri = "mondrian:" + uri;
+    }
+    
     if (uri.startsWith("inline:")) {
       root = mapper.readValue(
           uri.substring("inline:".length()), JsonRoot.class);

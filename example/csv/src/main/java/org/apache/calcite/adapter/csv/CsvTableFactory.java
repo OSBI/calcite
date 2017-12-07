@@ -49,7 +49,7 @@ public class CsvTableFactory implements TableFactory<CsvTable> {
     }
     final RelProtoDataType protoRowType =
         rowType != null ? RelDataTypeImpl.proto(rowType) : null;
-    return new CsvScannableTable(file, protoRowType);
+    return new CsvScannableTable(fileName, protoRowType);
   }
 }
 
