@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 
 
@@ -54,13 +55,16 @@ class CsvEnumerator<E> implements Enumerator<E> {
   private static final FastDateFormat TIME_FORMAT_DATE;
   private static final FastDateFormat TIME_FORMAT_TIME;
   private static final FastDateFormat TIME_FORMAT_TIMESTAMP;
-
+  
+  private static final Pattern DATE_REGEX;
+  
   static {
     TimeZone gmt = TimeZone.getTimeZone("GMT");
-    TIME_FORMAT_DATE = FastDateFormat.getInstance("yyyy-MM-dd", gmt);
+    TIME_FORMAT_DATE = FastDateFormat.getInstance("MM/dd/yyyy", gmt);
     TIME_FORMAT_TIME = FastDateFormat.getInstance("HH:mm:ss", gmt);
-    TIME_FORMAT_TIMESTAMP =
-        FastDateFormat.getInstance("yyyy-MM-dd HH:mm:ss", gmt);
+    TIME_FORMAT_TIMESTAMP = FastDateFormat.getInstance("MM/dd/yyyy HH:mm", gmt);
+    
+    DATE_REGEX = Pattern.compile("\\d{1,2}/\\d{1,2}/\\d{4}");
   }
 
   public CsvEnumerator(InputStream stream, List<CsvFieldType> fieldTypes) {
@@ -210,23 +214,29 @@ class CsvEnumerator<E> implements Enumerator<E> {
         }
       }
     }
+    
     if (names.isEmpty()) {
       names.add("line");
       types.add(typeFactory.createJavaType(String.class));
     }
+    
     return typeFactory.createStructType(Pair.zip(names, types));
   }
 
   private static String convertField(String f){
-
     String o;
 
-      o = isNumeric(f);
+    o = isNumeric(f);
 
-    if(o==null){
+    if (o == null) {
       o = isInteger(f);
     }
-    if(o==null){
+    
+    if (o == null && DATE_REGEX.matcher(f).matches()) {
+      o = "date";
+    }
+    
+    if (o == null) {
       o = "string";
     }
 

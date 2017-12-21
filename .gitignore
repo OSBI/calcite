@@ -12,3 +12,6 @@ settings.xml
 .classpath
 .settings
 .checkstyle
+
+# Saiku Tests
+example/csv/src/test/java/org/apache/calcite/test/SaikuChangesTest.java
