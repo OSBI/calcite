@@ -16,15 +16,6 @@
  */
 package org.apache.calcite.adapter.csv;
 
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.linq4j.Enumerator;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.util.Pair;
-
-import org.apache.commons.lang3.time.FastDateFormat;
-
-import au.com.bytecode.opencsv.CSVReader;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
@@ -40,13 +31,22 @@ import java.util.TimeZone;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 
+import org.apache.calcite.adapter.csv.saiku.SaikuCSVReader;
+import org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.calcite.linq4j.Enumerator;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.util.Pair;
+import org.apache.commons.lang3.time.FastDateFormat;
+
+import au.com.bytecode.opencsv.CSVReader;
+
 
 /** Enumerator that reads from a CSV file.
  *
  * @param <E> Row type
  */
 class CsvEnumerator<E> implements Enumerator<E> {
-  private final CSVReader reader;
+  private final SaikuCSVReader reader;
   private final String[] filterValues;
   private final RowConverter<E> rowConverter;
   private E current;
@@ -267,7 +267,7 @@ class CsvEnumerator<E> implements Enumerator<E> {
 
   }
 
-  private static CSVReader openCsv(File file) throws IOException {
+  private static SaikuCSVReader openCsv(File file) throws IOException {
     final Reader fileReader;
     if (file.getName().endsWith(".gz")) {
       final GZIPInputStream inputStream =
@@ -276,15 +276,15 @@ class CsvEnumerator<E> implements Enumerator<E> {
     } else {
       fileReader = new FileReader(file);
     }
-    return new CSVReader(fileReader);
+    return new SaikuCSVReader(fileReader);
   }
   
-  private static CSVReader openCsv(InputStream stream) throws IOException {
+  private static SaikuCSVReader openCsv(InputStream stream) throws IOException {
     if (CsvEnumerator.file != null) {
-      return new CSVReader(new FileReader(file));
+      return new SaikuCSVReader(new FileReader(file));
     } else {
       stream.reset();
-      return new CSVReader(new InputStreamReader(stream));
+      return new SaikuCSVReader(new InputStreamReader(stream));
     }
   }
 
