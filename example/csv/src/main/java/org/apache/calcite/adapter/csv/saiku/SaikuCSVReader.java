@@ -5,6 +5,7 @@ import java.io.Reader;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Calendar;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -12,12 +13,17 @@ import java.util.regex.Pattern;
 import au.com.bytecode.opencsv.CSVReader;
 
 public class SaikuCSVReader extends CSVReader {
-  private int lineNumber;
-  private int dateColumnIndex;
   private static final Pattern DATE_REGEX = Pattern.compile("(\\d{1,2})/(\\d{1,2})/(\\d{4})");
+  private static final Pattern TIME_REGEX = Pattern.compile("(\\d{1,2}):(\\d{1,2})");
+  
   private static final DateFormat INPUT_DATE_FORMAT = new SimpleDateFormat("MM/dd/yyyy");
   private static final DateFormat OUTPUT_DATE_FORMAT = new SimpleDateFormat("yyyy/MM/dd");
-  private static final DateFormat MONTH_NAME_FORMAT = new SimpleDateFormat("MMMM");
+  private static final DateFormat INPUT_TIME_FORMAT = new SimpleDateFormat("HH:mm");
+  private static final DateFormat OUTPUT_DATE_TIME_FORMAT = new SimpleDateFormat("yyyy/MM/dd HH:mm");
+  
+  private int lineNumber;
+  private int dateColumnIndex;
+  private int timeColumnIndex;
   
   public SaikuCSVReader(Reader reader) {
     super(reader);
@@ -34,17 +40,13 @@ public class SaikuCSVReader extends CSVReader {
       return values;
     }
     
-    String[] newValues = new String[values.length + 6];
+    String[] newValues = new String[values.length + 2];
     
     System.arraycopy(values, 0, newValues, 0, values.length);
     
     if (this.lineNumber == 1) { // if we're reading the first line
-      newValues[values.length + 0] = "DAY";
-      newValues[values.length + 1] = "MONTH";
-      newValues[values.length + 2] = "YEAR";
-      newValues[values.length + 3] = "WEEK";
-      newValues[values.length + 4] = "DATE_STRING";
-      newValues[values.length + 5] = "SAIKU_GENERATED_ID";
+      newValues[values.length + 0] = "DATE_STRING";
+      newValues[values.length + 1] = "DATE_TIME_STRING";
       
       // Try to discover what's the date column
       this.dateColumnIndex = -1;
@@ -54,45 +56,63 @@ public class SaikuCSVReader extends CSVReader {
           break;
         }
       }
-    } else {
-      if (this.dateColumnIndex >= 0) {
-        String dateString = values[this.dateColumnIndex];
-        Matcher matcher = DATE_REGEX.matcher(dateString);
-        
-        if (matcher.matches()) {
-          newValues[values.length + 1] = matcher.group(1); // Month
-          newValues[values.length + 0] = matcher.group(2); // Day
-          newValues[values.length + 2] = matcher.group(3); // Year
-          newValues[values.length + 5] = "" + this.lineNumber; // Saiku Generated ID
-          
-          try {
-            Calendar cal = Calendar.getInstance();
-            
-            cal.setTime(INPUT_DATE_FORMAT.parse(dateString));
-            
-            newValues[values.length + 1] = MONTH_NAME_FORMAT.format(cal.getTime());
-            newValues[values.length + 3] = "" + cal.get(Calendar.WEEK_OF_YEAR);
-            newValues[values.length + 4] = OUTPUT_DATE_FORMAT.format(cal.getTime());
-          } catch (ParseException e) {
-            e.printStackTrace();
-          }
-        } else {
-          fillWithDefaultValues(newValues, values.length, this.lineNumber);
+      
+      // Try to discover what's the time column
+      this.timeColumnIndex = -1;
+      for (int i = 0; i < values.length; i++) {
+        if (values[i].equalsIgnoreCase("time")) {
+          this.timeColumnIndex = i;
+          break;
         }
-      } else {
-        fillWithDefaultValues(newValues, values.length, this.lineNumber);
       }
+    } else {
+      Calendar cal = createDateCalendar(values);
+      newValues[values.length + 0] = OUTPUT_DATE_FORMAT.format(cal.getTime());
+      newValues[values.length + 1] = OUTPUT_DATE_TIME_FORMAT.format(createDateTimeCalendar(values, cal).getTime());
     }
     
     return newValues;
   }
   
-  private void fillWithDefaultValues(String[] newValues, int offset, int id) {
-    newValues[offset + 0] = "1";          // day
-    newValues[offset + 1] = "";           // month
-    newValues[offset + 2] = "1970";       // year
-    newValues[offset + 3] = "1";          // week
-    newValues[offset + 4] = "1970/01/01"; // date string
-    newValues[offset + 5] = "" + id;      // Saiku Generated ID
+  private Calendar createDateTimeCalendar(String[] values, Calendar dateCalendar) {
+    // If there's a time column
+    if (this.timeColumnIndex >= 0) {
+      String timeString = values[this.timeColumnIndex];
+      Matcher timeMatcher = TIME_REGEX.matcher(timeString);
+      
+      if (timeMatcher.matches()) {
+        try {
+          Date timeObj = INPUT_TIME_FORMAT.parse(timeString);
+          Calendar timeCal = Calendar.getInstance();
+          timeCal.setTime(timeObj);
+          dateCalendar.set(Calendar.HOUR_OF_DAY, timeCal.get(Calendar.HOUR_OF_DAY));
+          dateCalendar.set(Calendar.MINUTE, timeCal.get(Calendar.MINUTE));
+        } catch (ParseException e) {
+          e.printStackTrace();
+        }
+      }
+    }
+    
+    return dateCalendar;
+  }
+  
+  private Calendar createDateCalendar(String[] values) {
+    Calendar cal = Calendar.getInstance();
+    
+    // If there's a date column
+    if (this.dateColumnIndex >= 0) {
+      String dateString = values[this.dateColumnIndex];
+      Matcher matcher = DATE_REGEX.matcher(dateString);
+      
+      if (matcher.matches()) {
+        try {
+          cal.setTime(INPUT_DATE_FORMAT.parse(dateString));
+        } catch (ParseException e) {
+          e.printStackTrace();
+        }
+      }
+    }
+    
+    return cal;
   }
 }
