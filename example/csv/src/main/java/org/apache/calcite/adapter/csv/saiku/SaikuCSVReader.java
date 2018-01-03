@@ -13,17 +13,39 @@ import java.util.regex.Pattern;
 import au.com.bytecode.opencsv.CSVReader;
 
 public class SaikuCSVReader extends CSVReader {
-  private static final Pattern DATE_REGEX = Pattern.compile("(\\d{1,2})/(\\d{1,2})/(\\d{4})");
+  private static final Pattern DATE_REGEX[] = new Pattern[] {
+      Pattern.compile("(\\d{1,2})/(\\d{1,2})/(\\d{4})"),
+      Pattern.compile("(\\d{4})/(\\d{1,2})/(\\d{1,2})"),
+      Pattern.compile("(\\d{4})-(\\d{1,2})-(\\d{1,2})"),
+      Pattern.compile("(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})")
+  };
+  
   private static final Pattern TIME_REGEX = Pattern.compile("(\\d{1,2}):(\\d{1,2})");
   
-  private static final DateFormat INPUT_DATE_FORMAT = new SimpleDateFormat("MM/dd/yyyy");
+  // For each one of the input regular expressions, is associated an array of possible date formats 
+  private static final DateFormat INPUT_DATE_FORMAT[][] = new DateFormat[][] {
+      new DateFormat[] {new SimpleDateFormat("MM/dd/yyyy"), new SimpleDateFormat("dd/MM/yyyy")},
+      new DateFormat[] {new SimpleDateFormat("yyyy/MM/dd")},
+      new DateFormat[] {new SimpleDateFormat("yyyy-MM-dd")},
+      new DateFormat[] {new SimpleDateFormat("MM.dd.yyyy"), new SimpleDateFormat("dd.MM.yyyy")}
+  };
   private static final DateFormat OUTPUT_DATE_FORMAT = new SimpleDateFormat("yyyy/MM/dd");
   private static final DateFormat INPUT_TIME_FORMAT = new SimpleDateFormat("HH:mm");
   private static final DateFormat OUTPUT_DATE_TIME_FORMAT = new SimpleDateFormat("yyyy/MM/dd HH:mm");
   
+  private static final DateFormat DEFAULT_DATE_FORMAT = new SimpleDateFormat("MM/dd/yyyy");
+  
   private int lineNumber;
   private int dateColumnIndex;
   private int timeColumnIndex;
+  
+  static {
+    for (int i = 0; i < INPUT_DATE_FORMAT.length; i++) {
+      for (int j = 0; j < INPUT_DATE_FORMAT[i].length; j++) {
+        INPUT_DATE_FORMAT[i][j].setLenient(false);
+      }
+    }
+  }
   
   public SaikuCSVReader(Reader reader) {
     super(reader);
@@ -69,6 +91,8 @@ public class SaikuCSVReader extends CSVReader {
       Calendar cal = createDateCalendar(values);
       newValues[values.length + 0] = OUTPUT_DATE_FORMAT.format(cal.getTime());
       newValues[values.length + 1] = OUTPUT_DATE_TIME_FORMAT.format(createDateTimeCalendar(values, cal).getTime());
+      
+      newValues[this.dateColumnIndex] = DEFAULT_DATE_FORMAT.format(cal.getTime());
     }
     
     return newValues;
@@ -102,13 +126,21 @@ public class SaikuCSVReader extends CSVReader {
     // If there's a date column
     if (this.dateColumnIndex >= 0) {
       String dateString = values[this.dateColumnIndex];
-      Matcher matcher = DATE_REGEX.matcher(dateString);
       
-      if (matcher.matches()) {
-        try {
-          cal.setTime(INPUT_DATE_FORMAT.parse(dateString));
-        } catch (ParseException e) {
-          e.printStackTrace();
+      for (int i = 0; i < DATE_REGEX.length; i++) {
+        Matcher matcher = DATE_REGEX[i].matcher(dateString);
+        
+        if (matcher.matches()) {
+          for (int j = 0; j < INPUT_DATE_FORMAT[i].length; j++) {
+            try {
+              cal.setTime(INPUT_DATE_FORMAT[i][j].parse(dateString));
+              break;
+            } catch (ParseException e) {
+              // Check the next date format
+            }
+          }
+          
+          break;
         }
       }
     }
