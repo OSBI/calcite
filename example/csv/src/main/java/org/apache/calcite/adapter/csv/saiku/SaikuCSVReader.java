@@ -92,7 +92,9 @@ public class SaikuCSVReader extends CSVReader {
       newValues[values.length + 0] = OUTPUT_DATE_FORMAT.format(cal.getTime());
       newValues[values.length + 1] = OUTPUT_DATE_TIME_FORMAT.format(createDateTimeCalendar(values, cal).getTime());
       
-      newValues[this.dateColumnIndex] = DEFAULT_DATE_FORMAT.format(cal.getTime());
+      if (this.dateColumnIndex >= 0) {
+        newValues[this.dateColumnIndex] = DEFAULT_DATE_FORMAT.format(cal.getTime());
+      }
     }
     
     return newValues;
