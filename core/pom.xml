@@ -255,7 +255,7 @@
 							<goal>analyze-only</goal>
 						</goals>
 						<configuration>
-							<failOnWarning>true</failOnWarning>
+							<failOnWarning>false</failOnWarning>
 							<!-- ignore "unused but declared" warnings -->
 							<ignoredUnusedDeclaredDependencies>
 								<ignoredUnusedDeclaredDependency>com.h2database:h2</ignoredUnusedDeclaredDependency>
